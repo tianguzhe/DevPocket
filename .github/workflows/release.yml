@@ -1,0 +1,128 @@
+name: Build and Release DMG
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    env:
+      DEVPOCKET_DERIVED_DATA: ${{ github.workspace }}/build/DerivedData
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check version and toolchain
+        id: metadata
+        run: |
+          version="$(bash Scripts/app-version.sh)"
+          if [[ "$GITHUB_REF" == refs/tags/* ]] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          xcodebuild -version
+
+      - name: Test
+        run: |
+          mkdir -p build
+          bash Scripts/test.sh 2>&1 | tee build/tests.log
+
+      - name: Build Universal app
+        run: bash Scripts/build.sh
+
+      - name: Package and verify DMG
+        env:
+          EXPECTED_VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/DevPocket.app/Contents/Info.plist)"
+          if [ "$actual_version" != "$EXPECTED_VERSION" ]; then
+            echo "::error::Built version $actual_version does not match $EXPECTED_VERSION"
+            exit 1
+          fi
+          bash Scripts/package.sh --skip-build 2>&1 | tee build/package.log
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: DevPocket-${{ steps.metadata.outputs.version }}-universal
+          path: |
+            dist/DevPocket.dmg
+            dist/DevPocket.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Build summary
+        env:
+          APP_VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          {
+            printf '### DevPocket %s\n\n' "$APP_VERSION"
+            printf 'macOS 14+ · Apple Silicon + Intel · ad-hoc signed\n\n'
+            printf 'Download DevPocket.dmg and its SHA-256 from this run’s installer artifact.\n\n'
+            printf 'Pushed version tags also publish these files to GitHub Releases.\n\n'
+            printf '```text\n'
+            cat dist/DevPocket.dmg.sha256
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    # Only a pushed version tag publishes a release; other events upload artifacts.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: DevPocket-${{ needs.build.outputs.version }}-universal
+          path: dist
+
+      - name: Verify downloaded installer
+        working-directory: dist
+        run: sha256sum -c DevPocket.dmg.sha256
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              dist/DevPocket.dmg dist/DevPocket.dmg.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              dist/DevPocket.dmg dist/DevPocket.dmg.sha256 \
+              --verify-tag --title "DevPocket $GITHUB_REF_NAME" --generate-notes
+          fi
