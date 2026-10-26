@@ -3,7 +3,10 @@ import Foundation
 @main
 struct ToolEngineTests {
     static func run(_ mode: ToolMode, _ input: String, zone: String = "UTC") throws -> String {
-        try ToolEngine.run(ToolRequest(mode: mode, input: input, timeZoneID: zone))
+        guard case .text(let text) = try ToolEngine.run(ToolRequest(mode: mode, input: input, timeZoneID: zone)) else {
+            fatalError("Expected text output")
+        }
+        return text
     }
     static func check(_ expression: @autoclosure () throws -> Bool) throws {
         let result = try expression()
@@ -16,7 +19,10 @@ struct ToolEngineTests {
         } catch {}
     }
     static func aes(_ mode: ToolMode, _ input: String, _ options: AESOptions = AESOptions()) throws -> String {
-        try ToolEngine.run(ToolRequest(mode: mode, input: input, aes: options))
+        guard case .text(let text) = try ToolEngine.run(ToolRequest(mode: mode, input: input, aes: options)) else {
+            fatalError("Expected AES text output")
+        }
+        return text
     }
     static func rejectsAES(_ input: String, _ options: AESOptions = AESOptions(), mode: ToolMode = .aesDecrypt, message: String) {
         do {

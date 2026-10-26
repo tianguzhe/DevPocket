@@ -39,6 +39,7 @@
 | URL | RFC 3986 组件编码与百分号解码，保留字面的 `+` |
 | Base64 | UTF-8 文本编解码，解码时允许空白与换行 |
 | AES | CBC / PKCS7 加解密，Hex / Base64 密文、渠道密钥派生、JSON 结果预览 |
+| 二维码 | 文本 / 网址自动生成、二维码预览、复制图片，支持尺寸和纠错等级选择 |
 
 所有工具首次打开时输入与结果均为空白，直接粘贴或输入内容即可使用。时间戳页面提供「当前时间」，按所选的秒、毫秒或日期模式实时取时并转换。工具之间保留各自的输入与结果。修改输入后，旧结果会显示「待处理」，处理完成才能复制。原生文本编辑器支持撤销、选择和常用编辑快捷键。
 
@@ -48,13 +49,15 @@
 
 | 快捷键 | 操作 |
 | --- | --- |
-| `⌘1`–`⌘5` | 切换工具 |
+| `⌘1`–`⌘6` | 切换工具（`⌘6` 打开二维码生成） |
 | `⌘K` | 搜索工具，回车选择 |
 | `⌘↩` | 处理当前内容 |
 | `⌘⇧C` | 复制结果 |
 | `⌘⇧V` | 从剪贴板粘贴到输入 |
 
 URL、Base64 与 AES 页面支持将结果作为输入，执行反向转换。
+
+二维码页面支持中文、emoji、多行文本和网址，保留输入原文；停止输入 1 秒后自动生成，修改尺寸或纠错等级也会自动更新，也可点击「生成二维码」立即生成。生成后可直接扫描或复制图片。图片尺寸可选 256 / 512 / 1024 像素，默认 512；纠错等级可选 L / M / Q / H，默认 M。图片采用黑码白底并保留扫码留白，所有处理均在本机完成。等待更新期间旧图片不可复制，清空输入会清除预览。
 
 ## AES 工作台
 
@@ -92,6 +95,8 @@ bash Scripts/package.sh --skip-build
 
 安装包与 SHA-256 位于 `dist/`。产物采用 ad-hoc 签名，未经 Developer ID 签名或 Apple 公证。
 
+DMG 使用薄荷色品牌背景、固定的双图标布局和中文拖拽指引，支持 Retina 显示。打包脚本会在 `build/dmg-tools` 创建独立的 Python 环境，首次运行需联网安装固定版本的 `dmgbuild` 及其依赖（Python 3.9+，可使用 Xcode 自带版本）；后续打包复用该环境。窗口布局直接写入安装包，无需启动 Finder，CI 与本地采用相同设置。背景预览位于 `build/dmg-background@2x.png`。
+
 `project.yml` 是 XcodeGen 工程配置。修改目标或构建设置后，可运行 `xcodegen generate` 重新生成工程；日常构建不需要安装 XcodeGen。通过 `DEVPOCKET_DERIVED_DATA` 可指定 Xcode 缓存位置。
 
 ## 自动打包与发布
@@ -116,6 +121,7 @@ git push origin v0.1.0
 ## 数据与边界
 
 - 单次输入最多 5 MB；大型 JSON 文档使用普通文本显示以保持编辑流畅。
+- 二维码容量按 UTF-8 字节计算，L / M / Q / H 分别最多 2953 / 2331 / 1663 / 1273 字节；中文和 emoji 通常占多个字节。
 - Base64 解码面向 UTF-8 文本，不用于导出二进制文件。
 - 时间显示范围为公元 0001–9999 年；秒和毫秒由所选模式明确区分。
 - 日期格式为 ISO 8601 或 `yyyy-MM-dd HH:mm:ss`，无时区日期按所选时区解释。
@@ -126,6 +132,8 @@ git push origin v0.1.0
 ```text
 DevPocket/ToolEngine.swift       独立转换逻辑
 DevPocket/AESEngine.swift        原生 AES 与 cy-tools 兼容规则
+DevPocket/QRCodeEngine.swift     本地二维码生成、像素对齐与 PNG 编码
+DevPocket/QRCodeView.swift       二维码配置与图片预览
 DevPocket/AESConfigurationView.swift  AES 参数卡片
 DevPocket/WorkspaceStore.swift   工具状态、后台处理与复制反馈
 DevPocket/ContentView.swift      SwiftUI 界面与动效

@@ -9,16 +9,16 @@ struct ContentView: View {
 
     private let groups: [(String, [DeveloperTool])] = [
         ("数据与时间", [.json, .timestamp]),
-        ("编码与转换", [.url, .base64]),
+        ("编码与转换", [.url, .base64, .qrcode]),
         ("加密与安全", [.aes])
     ]
     private var motion: Animation? {
         reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.94)
     }
     private var groupTitle: String { groups.first { $0.1.contains(store.selected) }?.0 ?? "工具箱" }
-    private var outputPending: Bool { store.page.dirty || store.page.output.isEmpty }
+    private var outputPending: Bool { store.page.dirty || !store.hasOutput }
     private var outputStatus: String {
-        store.page.busy ? "处理中" : store.page.dirty ? "待处理" : store.page.output.isEmpty ? "等待输入" : "已就绪"
+        store.page.busy ? "处理中" : store.page.dirty ? "待处理" : !store.hasOutput ? "等待输入" : "已就绪"
     }
     private func matches(_ tool: DeveloperTool) -> Bool {
         query.isEmpty || tool.title.localizedStandardContains(query) || tool.rawValue.localizedStandardContains(query)
@@ -137,11 +137,19 @@ struct ContentView: View {
     private var workspace: some View {
         VStack(alignment: .leading, spacing: 16) {
             workspaceHeader
-            conversionBar
+            if store.selected == .qrcode {
+                QRCodeConfigurationView()
+            } else {
+                conversionBar
+            }
             if store.selected == .aes { AESConfigurationView() }
             HStack(spacing: 14) {
                 editorPanel(title: inputTitle, symbol: "square.and.pencil", input: true)
-                editorPanel(title: outputTitle, symbol: "text.alignleft", input: false)
+                if store.selected == .qrcode {
+                    QRCodePreviewPanel()
+                } else {
+                    editorPanel(title: outputTitle, symbol: "text.alignleft", input: false)
+                }
             }
             .frame(maxHeight: .infinity)
             if let error = store.page.error { errorNotice(error) }
@@ -207,7 +215,7 @@ struct ContentView: View {
                     .buttonStyle(PocketButtonStyle()).disabled(!store.canCopy)
                     .help("将结果作为输入，执行反向转换").accessibilityLabel("反向转换")
             }
-            Button(action: store.copyOutput) { Label("复制结果", systemImage: "doc.on.doc") }
+            Button(action: store.copyOutput) { Label(store.selected == .qrcode ? "复制图片" : "复制结果", systemImage: "doc.on.doc") }
                 .buttonStyle(PocketButtonStyle()).disabled(!store.canCopy)
                 .help(store.selected == .aes ? "复制原始结果（⌘⇧C）；JSON 格式化仅影响显示" : "复制结果（⌘⇧C）")
             Button(action: store.process) {
@@ -248,6 +256,7 @@ struct ContentView: View {
         case .url: return store.mode == .urlEncode ? "输入需要编码的文本" : "输入需要解码的 URL 内容"
         case .base64: return store.mode == .base64Encode ? "输入需要编码的文本" : "输入 Base64 文本"
         case .aes: return store.mode == .aesDecrypt ? "输入需要解密的密文" : "输入需要加密的明文"
+        case .qrcode: return "输入文本或网址，生成二维码"
         }
     }
 
@@ -325,6 +334,7 @@ struct ContentView: View {
         case .url: return "URL 组件编码 · + 保留为加号"
         case .base64: return "UTF-8 文本 · 允许 Base64 换行"
         case .aes: return "CBC / PKCS7 · 不含完整性校验"
+        case .qrcode: return "停止输入 1 秒后自动生成"
         }
     }
 }

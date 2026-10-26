@@ -13,11 +13,14 @@ struct ToolPage {
     var aes = AESOptions()
     var prettyAESJSON = true
     var jsonPreview: String?
+    var qrCodeOptions = QRCodeOptions()
+    var qrCode: QRCodeImage?
 }
 
 private struct ProcessedOutput: Sendable {
     let raw: String
     let jsonPreview: String?
+    var qrCode: QRCodeImage?
 }
 
 @MainActor
@@ -27,6 +30,7 @@ final class WorkspaceStore: ObservableObject {
     @Published var toast: String?
     private var requests: [DeveloperTool: UUID] = [:]
     private var toastID = UUID()
+    private var qrCodeTask: Task<Void, Never>?
 
     init() {
         for tool in DeveloperTool.allCases {
@@ -74,6 +78,13 @@ final class WorkspaceStore: ObservableObject {
         get { page.prettyAESJSON }
         set { pages[selected]?.prettyAESJSON = newValue }
     }
+    var qrCodeOptions: QRCodeOptions {
+        get { page.qrCodeOptions }
+        set {
+            guard newValue != page.qrCodeOptions else { return }
+            edit { $0.qrCodeOptions = newValue }
+        }
+    }
     var displayedOutput: String {
         if selected == .aes, mode == .aesDecrypt, page.prettyAESJSON, let preview = page.jsonPreview { return preview }
         return page.output
@@ -82,9 +93,10 @@ final class WorkspaceStore: ObservableObject {
         selected == .aes ? (mode == .aesDecrypt ? "解密文本" : "加密文本") : selected.actionTitle
     }
     nonisolated private static func jsonPreview(_ text: String) -> String? {
-        try? ToolEngine.run(ToolRequest(mode: .jsonPretty, input: text, sortKeys: false))
+        try? ToolEngine.run(ToolRequest(mode: .jsonPretty, input: text, sortKeys: false)).text
     }
-    var canCopy: Bool { !page.output.isEmpty && !page.dirty && !page.busy && page.error == nil }
+    var hasOutput: Bool { selected == .qrcode ? page.qrCode != nil : !page.output.isEmpty }
+    var canCopy: Bool { hasOutput && !page.dirty && !page.busy && page.error == nil }
 
     private func edit(_ update: (inout ToolPage) -> Void) {
         var changed = page
@@ -92,15 +104,38 @@ final class WorkspaceStore: ObservableObject {
         changed.dirty = true
         changed.error = nil
         changed.busy = false
+        if selected == .qrcode, changed.input.isEmpty { changed.qrCode = nil }
         requests[selected] = UUID() // A result for older input must never replace this page.
         pages[selected] = changed
+        if selected == .qrcode { scheduleQRCode() }
     }
 
     func process() {
-        let tool = selected
-        let snapshot = page
+        if selected == .qrcode {
+            qrCodeTask?.cancel()
+            qrCodeTask = nil
+        }
+        process(selected)
+    }
+
+    private func scheduleQRCode() {
+        qrCodeTask?.cancel()
+        qrCodeTask = nil
+        guard let page = pages[.qrcode], !page.input.isEmpty else { return }
+        qrCodeTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(1)) }
+            catch { return }
+            guard !Task.isCancelled, let self else { return }
+            self.qrCodeTask = nil
+            self.process(.qrcode)
+        }
+    }
+
+    private func process(_ tool: DeveloperTool) {
+        guard let snapshot = pages[tool] else { return }
         let request = ToolRequest(mode: snapshot.mode, input: snapshot.input,
-                                  sortKeys: snapshot.sortKeys, timeZoneID: snapshot.timeZoneID, aes: snapshot.aes)
+                                  sortKeys: snapshot.sortKeys, timeZoneID: snapshot.timeZoneID,
+                                  aes: snapshot.aes, qrCode: snapshot.qrCodeOptions)
         let requestID = UUID()
         requests[tool] = requestID
         pages[tool]?.busy = true
@@ -108,8 +143,12 @@ final class WorkspaceStore: ObservableObject {
         Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) { () -> Result<ProcessedOutput, ToolFailure> in
                 do {
-                    let raw = try ToolEngine.run(request)
-                    return .success(ProcessedOutput(raw: raw, jsonPreview: request.mode == .aesDecrypt ? Self.jsonPreview(raw) : nil))
+                    switch try ToolEngine.run(request) {
+                    case .text(let raw):
+                        return .success(ProcessedOutput(raw: raw, jsonPreview: request.mode == .aesDecrypt ? Self.jsonPreview(raw) : nil))
+                    case .qrCode(let image):
+                        return .success(ProcessedOutput(raw: "", jsonPreview: nil, qrCode: image))
+                    }
                 }
                 catch {
                     let details = (error as NSError).userInfo[NSDebugDescriptionErrorKey] as? String
@@ -122,6 +161,7 @@ final class WorkspaceStore: ObservableObject {
             case .success(let output):
                 self.pages[tool]?.output = output.raw
                 self.pages[tool]?.jsonPreview = output.jsonPreview
+                self.pages[tool]?.qrCode = output.qrCode
                 self.pages[tool]?.dirty = false
             case .failure(let error):
                 self.pages[tool]?.error = error.message
@@ -142,8 +182,13 @@ final class WorkspaceStore: ObservableObject {
     func copyOutput() {
         guard canCopy else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(page.output, forType: .string)
-        notify("已复制到剪贴板")
+        if selected == .qrcode, let image = page.qrCode {
+            NSPasteboard.general.setData(image.pngData, forType: .png)
+            notify("已复制二维码图片")
+        } else {
+            NSPasteboard.general.setString(page.output, forType: .string)
+            notify("已复制到剪贴板")
+        }
     }
 
     func clear() { input = "" }

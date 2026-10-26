@@ -2,7 +2,7 @@ import Foundation
 
 // This layer has no UI or network dependency, so it can be exercised on its own.
 enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
-    case json, timestamp, url, base64, aes
+    case json, timestamp, url, base64, aes, qrcode
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -11,6 +11,7 @@ enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
         case .url: return "URL 编解码"
         case .base64: return "Base64 编解码"
         case .aes: return "AES 加解密"
+        case .qrcode: return "二维码生成"
         }
     }
     var symbol: String {
@@ -20,6 +21,7 @@ enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
         case .url: return "link"
         case .base64: return "character"
         case .aes: return "lock.open"
+        case .qrcode: return "qrcode"
         }
     }
     var subtitle: String {
@@ -29,6 +31,7 @@ enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
         case .url: return "处理查询参数里的空格、符号与中文。"
         case .base64: return "把文本编码，或还原成最初的样子。"
         case .aes: return "让密文回到文本，也让加密变得顺手。"
+        case .qrcode: return "把文本或网址，变成随手可扫的二维码。"
         }
     }
     var modes: [ToolMode] {
@@ -38,6 +41,7 @@ enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
         case .url: return [.urlEncode, .urlDecode]
         case .base64: return [.base64Encode, .base64Decode]
         case .aes: return [.aesDecrypt, .aesEncrypt]
+        case .qrcode: return [.qrGenerate]
         }
     }
     var actionTitle: String {
@@ -46,6 +50,7 @@ enum DeveloperTool: String, CaseIterable, Identifiable, Sendable {
         case .timestamp: return "转换时间"
         case .url, .base64: return "开始转换"
         case .aes: return "处理 AES"
+        case .qrcode: return "生成二维码"
         }
     }
 }
@@ -54,6 +59,7 @@ enum ToolMode: String, Identifiable, Sendable {
     case jsonPretty, jsonCompact, seconds, milliseconds, date
     case urlEncode, urlDecode, base64Encode, base64Decode
     case aesDecrypt, aesEncrypt
+    case qrGenerate
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -66,6 +72,7 @@ enum ToolMode: String, Identifiable, Sendable {
         case .urlDecode, .base64Decode: return "解码"
         case .aesDecrypt: return "解密"
         case .aesEncrypt: return "加密"
+        case .qrGenerate: return "生成"
         }
     }
 }
@@ -76,6 +83,17 @@ struct ToolRequest: Sendable {
     var sortKeys = true
     var timeZoneID = TimeZone.current.identifier
     var aes = AESOptions()
+    var qrCode = QRCodeOptions()
+}
+
+enum ToolOutput: Sendable {
+    case text(String)
+    case qrCode(QRCodeImage)
+
+    var text: String? {
+        if case .text(let value) = self { return value }
+        return nil
+    }
 }
 
 struct ToolFailure: LocalizedError {
@@ -84,7 +102,7 @@ struct ToolFailure: LocalizedError {
 }
 
 enum ToolEngine {
-    static func run(_ request: ToolRequest) throws -> String {
+    static func run(_ request: ToolRequest) throws -> ToolOutput {
         guard request.input.utf8.count <= 5_000_000 else {
             throw ToolFailure(message: "内容超过 5 MB，请缩小后再处理。")
         }
@@ -95,30 +113,32 @@ enum ToolEngine {
             if request.mode == .jsonPretty { options.insert(.prettyPrinted) }
             if request.sortKeys { options.insert(.sortedKeys) }
             let data = try JSONSerialization.data(withJSONObject: object, options: options)
-            return String(decoding: data, as: UTF8.self)
+            return .text(String(decoding: data, as: UTF8.self))
         case .urlEncode:
             let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
             guard let encoded = request.input.addingPercentEncoding(withAllowedCharacters: unreserved) else {
                 throw ToolFailure(message: "这段文本无法进行 URL 编码。")
             }
-            return encoded
+            return .text(encoded)
         case .urlDecode:
             guard let decoded = request.input.removingPercentEncoding else {
                 throw ToolFailure(message: "无效的百分号编码，请检查 % 后是否是两个十六进制字符。")
             }
-            return decoded
+            return .text(decoded)
         case .base64Encode:
-            return Data(request.input.utf8).base64EncodedString()
+            return .text(Data(request.input.utf8).base64EncodedString())
         case .base64Decode:
             let normalized = String(request.input.filter { !$0.isWhitespace })
             guard let data = Data(base64Encoded: normalized), let decoded = String(data: data, encoding: .utf8) else {
                 throw ToolFailure(message: "请输入有效的 Base64 编码，且解码结果必须是 UTF-8 文本。")
             }
-            return decoded
+            return .text(decoded)
         case .seconds, .milliseconds, .date:
-            return try convertTime(request)
+            return .text(try convertTime(request))
         case .aesDecrypt, .aesEncrypt:
-            return try AESEngine.run(request.input, decrypt: request.mode == .aesDecrypt, options: request.aes)
+            return .text(try AESEngine.run(request.input, decrypt: request.mode == .aesDecrypt, options: request.aes))
+        case .qrGenerate:
+            return .qrCode(try QRCodeEngine.generate(request.input, options: request.qrCode))
         }
     }
 
