@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+python3 "$ROOT/Scripts/build_isolation.py" prepare --root "$ROOT" >/dev/null
 VERSION="$(xcodebuild -project "$ROOT/DevPocket.xcodeproj" \
     -scheme DevPocket -configuration Release -destination 'generic/platform=macOS' \
     -showBuildSettings CODE_SIGNING_ALLOWED=NO | \

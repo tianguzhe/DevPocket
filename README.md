@@ -75,15 +75,17 @@ URL、Base64 与 AES 页面支持将结果作为输入，执行反向转换。
 
 ## 构建
 
-需要完整 Xcode。工程已生成，可直接打开 `DevPocket.xcodeproj`。
+需要完整 Xcode。工程已生成。首次打开 Xcode 前先执行 `python3 Scripts/build_isolation.py prepare`，配置本项目的隔离缓存。
 
 ```bash
 bash Scripts/test.sh
 bash Scripts/build.sh
-open build/DevPocket.app
+# 正式安装从 DMG 获取：
+bash Scripts/package.sh --skip-build
+open dist/DevPocket.dmg
 ```
 
-`build.sh` 自动更新图标、构建 `arm64 + x86_64`、进行 ad-hoc 签名并验证架构和签名。输出为 `build/DevPocket.app`，完整日志保存在 `build/build.log`。
+`build.sh` 自动更新图标、构建 `arm64 + x86_64`、进行 ad-hoc 签名并验证架构和签名。输出为 `.build/artifacts.noindex/DevPocket.app`，完整日志保存在 `.build/artifacts.noindex/build.log`。
 
 生成 DMG：
 
@@ -95,9 +97,23 @@ bash Scripts/package.sh --skip-build
 
 安装包与 SHA-256 位于 `dist/`。产物采用 ad-hoc 签名，未经 Developer ID 签名或 Apple 公证。
 
-DMG 使用薄荷色品牌背景、固定的双图标布局和中文拖拽指引，支持 Retina 显示。打包脚本会在 `build/dmg-tools` 创建独立的 Python 环境，首次运行需联网安装固定版本的 `dmgbuild` 及其依赖（Python 3.9+，可使用 Xcode 自带版本）；后续打包复用该环境。窗口布局直接写入安装包，无需启动 Finder，CI 与本地采用相同设置。背景预览位于 `build/dmg-background@2x.png`。
+DMG 使用薄荷色品牌背景、固定的双图标布局和中文拖拽指引，支持 Retina 显示。打包脚本会在 `.build/artifacts.noindex/dmg-tools` 创建独立的 Python 环境，首次运行需联网安装固定版本的 `dmgbuild` 及其依赖（Python 3.9+，可使用 Xcode 自带版本）；后续打包复用该环境。窗口布局直接写入安装包，无需启动 Finder，CI 与本地采用相同设置。背景预览位于 `.build/artifacts.noindex/dmg-background@2x.png`。
 
-`project.yml` 是 XcodeGen 工程配置。修改目标或构建设置后，可运行 `xcodegen generate` 重新生成工程；日常构建不需要安装 XcodeGen。通过 `DEVPOCKET_DERIVED_DATA` 可指定 Xcode 缓存位置。
+`project.yml` 是 XcodeGen 工程配置。修改目标或构建设置后，可运行 `xcodegen generate` 重新生成工程；日常构建不需要安装 XcodeGen。通过 `DEVPOCKET_DERIVED_DATA` 可指定 `.build/artifacts.noindex` 内的 Xcode 缓存位置；脚本会拒绝写入隔离目录以外的缓存路径。
+
+### 测试副本与搜索
+
+开发构建、测试程序、打包工具和临时 App 全部放在 `.build/artifacts.noindex/`。共享 scheme 和脚本在构建、测试、调试结束后按路径注销临时 App 的 LaunchServices 记录；正式安装保留在 `/Applications`，从 `dist/DevPocket.dmg` 拖入安装。
+
+```bash
+python3 Scripts/build_isolation.py status
+python3 Scripts/build_isolation.py cleanup --dry-run
+python3 Scripts/build_isolation.py cleanup
+```
+
+脚本可通过 `--root /path/to/project` 复用到其他项目；只处理指定项目的开发目录和有归属元数据的旧 DerivedData，不删除 App、不重置系统注册数据库。直接运行测试副本可能临时重新注册，退出后可执行 `cleanup`。搜索或第三方启动器可能需要重新打开以刷新缓存。
+
+旧 `build/` 在本次接入时归档到 `.build/legacy-build.noindex/`，供回溯，不复用其中带旧绝对路径的虚拟环境。新构建会创建自己的工具和缓存。
 
 ## 自动打包与发布
 

@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.metadata.outputs.version }}
     env:
-      DEVPOCKET_DERIVED_DATA: ${{ github.workspace }}/build/DerivedData
+      DEVPOCKET_DERIVED_DATA: ${{ github.workspace }}/.build/artifacts.noindex/DerivedData
     steps:
       - uses: actions/checkout@v7
         with:
@@ -44,8 +44,8 @@ jobs:
 
       - name: Test
         run: |
-          mkdir -p build
-          bash Scripts/test.sh 2>&1 | tee build/tests.log
+          mkdir -p .build/artifacts.noindex
+          bash Scripts/test.sh 2>&1 | tee .build/artifacts.noindex/tests.log
 
       - name: Build Universal app
         run: bash Scripts/build.sh
@@ -54,12 +54,12 @@ jobs:
         env:
           EXPECTED_VERSION: ${{ steps.metadata.outputs.version }}
         run: |
-          actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/DevPocket.app/Contents/Info.plist)"
+          actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' .build/artifacts.noindex/DevPocket.app/Contents/Info.plist)"
           if [ "$actual_version" != "$EXPECTED_VERSION" ]; then
             echo "::error::Built version $actual_version does not match $EXPECTED_VERSION"
             exit 1
           fi
-          bash Scripts/package.sh --skip-build 2>&1 | tee build/package.log
+          bash Scripts/package.sh --skip-build 2>&1 | tee .build/artifacts.noindex/package.log
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
@@ -77,7 +77,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: build-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: build/*.log
+          path: .build/artifacts.noindex/*.log
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
 

@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     macOS: '14.0'
   xcodeVersion: '16.0'
+  postGenCommand: python3 Scripts/build_isolation.py prepare
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -30,7 +31,34 @@ schemes:
     build:
       targets:
         DevPocket: all
+      runPostActionsOnFailure: true
+      preActions:
+        - name: Prepare isolated build directory
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" prepare --root "$SRCROOT"'
+      postActions:
+        - name: Remove development app registrations
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" cleanup --root "$SRCROOT"'
     run:
       config: Debug
+      postActions:
+        - name: Remove development app registrations
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" cleanup --root "$SRCROOT"'
+    test:
+      postActions:
+        - name: Remove development app registrations
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" cleanup --root "$SRCROOT"'
+    profile:
+      postActions:
+        - name: Remove development app registrations
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" cleanup --root "$SRCROOT"'
     archive:
       config: Release
+      postActions:
+        - name: Remove development app registrations
+          settingsTarget: DevPocket
+          script: '/usr/bin/python3 "$SRCROOT/Scripts/build_isolation.py" cleanup --root "$SRCROOT"'

@@ -7,26 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		03CE51F95D4A4652978201E0 /* QRCodeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 662DD19363A34ABFBCB41AE0 /* QRCodeEngine.swift */; };
-		720D62A899A74C32AB856F30 /* QRCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112107BC09854AB9BA8382D6 /* QRCodeView.swift */; };
 		0E1800CB37ECA58E4B7CFF39 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A96340CE56C0C6E83874B9 /* ContentView.swift */; };
 		25910B25B9F09D7EC419797D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A092A1D8881D74FA94E845F1 /* Assets.xcassets */; };
 		2742B096372160876E65F97C /* WorkspaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6182F3657A380CC03C05A831 /* WorkspaceStore.swift */; };
 		997B20C5976100CE1A02AC82 /* DevPocketApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968762D44A89438C73BDAF02 /* DevPocketApp.swift */; };
+		A954CBA32ED2E0BE6ACBCE70 /* QRCodeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E11837B4F06DA61A6C765A /* QRCodeEngine.swift */; };
 		AA81317BCDE16036D93C40E9 /* CodeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2F463E30E17BF23E0CD6DB /* CodeEditor.swift */; };
 		C5E89ECC2E17CC95192E99EA /* ToolEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987A0862B00CA07B8C8C37A1 /* ToolEngine.swift */; };
 		C70F0D415502961C481747F1 /* AESConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7865CE7894679E77DE68B0C5 /* AESConfigurationView.swift */; };
 		EB3A88ED133A72F49EDFBFF1 /* PocketControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8DDE5AEF03590902CEA4A0E /* PocketControls.swift */; };
+		F49A0CFA4B266DE5D1A4B34E /* QRCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9331B4DD0F2779E8C2F1870A /* QRCodeView.swift */; };
 		FBA5DBDE10D4E0FBE357052F /* AESEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976F92D8BD7988FEDFE57CD7 /* AESEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		662DD19363A34ABFBCB41AE0 /* QRCodeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeEngine.swift; sourceTree = "<group>"; };
-		112107BC09854AB9BA8382D6 /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
 		231989670A458F06313445A3 /* DevPocket.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DevPocket.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47A96340CE56C0C6E83874B9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		6182F3657A380CC03C05A831 /* WorkspaceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceStore.swift; sourceTree = "<group>"; };
+		67E11837B4F06DA61A6C765A /* QRCodeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeEngine.swift; sourceTree = "<group>"; };
 		7865CE7894679E77DE68B0C5 /* AESConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AESConfigurationView.swift; sourceTree = "<group>"; };
+		9331B4DD0F2779E8C2F1870A /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
 		968762D44A89438C73BDAF02 /* DevPocketApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevPocketApp.swift; sourceTree = "<group>"; };
 		976F92D8BD7988FEDFE57CD7 /* AESEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AESEngine.swift; sourceTree = "<group>"; };
 		987A0862B00CA07B8C8C37A1 /* ToolEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolEngine.swift; sourceTree = "<group>"; };
@@ -54,8 +54,8 @@
 				47A96340CE56C0C6E83874B9 /* ContentView.swift */,
 				968762D44A89438C73BDAF02 /* DevPocketApp.swift */,
 				D8DDE5AEF03590902CEA4A0E /* PocketControls.swift */,
-				662DD19363A34ABFBCB41AE0 /* QRCodeEngine.swift */,
-				112107BC09854AB9BA8382D6 /* QRCodeView.swift */,
+				67E11837B4F06DA61A6C765A /* QRCodeEngine.swift */,
+				9331B4DD0F2779E8C2F1870A /* QRCodeView.swift */,
 				987A0862B00CA07B8C8C37A1 /* ToolEngine.swift */,
 				6182F3657A380CC03C05A831 /* WorkspaceStore.swift */,
 			);
@@ -147,8 +147,8 @@
 				0E1800CB37ECA58E4B7CFF39 /* ContentView.swift in Sources */,
 				997B20C5976100CE1A02AC82 /* DevPocketApp.swift in Sources */,
 				EB3A88ED133A72F49EDFBFF1 /* PocketControls.swift in Sources */,
-				03CE51F95D4A4652978201E0 /* QRCodeEngine.swift in Sources */,
-				720D62A899A74C32AB856F30 /* QRCodeView.swift in Sources */,
+				A954CBA32ED2E0BE6ACBCE70 /* QRCodeEngine.swift in Sources */,
+				F49A0CFA4B266DE5D1A4B34E /* QRCodeView.swift in Sources */,
 				C5E89ECC2E17CC95192E99EA /* ToolEngine.swift in Sources */,
 				2742B096372160876E65F97C /* WorkspaceStore.swift in Sources */,
 			);
